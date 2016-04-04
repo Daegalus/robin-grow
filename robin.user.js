@@ -505,17 +505,43 @@
                 var $message = $(jq[0].children && jq[0].children[2]);
                 var messageText = $message.text();
 
-                var remove_message =
-                    (mutedList.indexOf(thisUser) >= 0) ||
-                    (settings.removeSpam && isBotSpam(messageText)) ||
-                    (settings.filterChannel &&
-                        !jq.hasClass('robin--user-class--system') &&
-                        String(settings.channel).length > 0 &&
-                        !hasChannel(messageText, settings.channel));
 
 
-                if(nextIsRepeat && jq.hasClass('robin--user-class--system')) {
+                var is_muted = (mutedList.indexOf(thisUser) >= 0);
+                var is_spam = (settings.removeSpam && isBotSpam(messageText));
+
+                var remove_message = is_muted || is_spam;
+
+                if(!remove_message) {
+                    // invariant: neither muted nor spam
+                    // check if message doesn't belong to filtered channel
+                    var is_not_in_channel = (settings.filterChannel &&
+                            !jq.hasClass('robin--user-class--system') &&
+                            String(settings.channel).length > 0 &&
+                            !hasChannel(messageText, settings.channel));
+
+                    if(is_not_in_channel) {
+                        // check if this message mentions this user
+                        //
+                        if (messageText.toLowerCase().indexOf(currentUsersName.toLowerCase()) !== -1) {
+                            $message.parent().css("background","#FFA27F");
+                            notifAudio.play();
+
+                            return;
+                        }
+                        //still show mentions in highlight color.
+                        else if (messageText.toLowerCase().split(" ")[0][0] in colors_match) {
+                            $message.parent().css("background",colors_match[messageText.toLowerCase().split(" ")[0][0]]);
+
+                            return;
+                        }
+                    }
                 }
+
+                // wtf was this?
+                // if(nextIsRepeat && jq.hasClass('robin--user-class--system')) {
+                // }
+                //
                 var nextIsRepeat = jq.hasClass('robin--user-class--system') && messageText.indexOf("try again") >= 0;
                 if(nextIsRepeat) {
                     $(".text-counter-input").val(jq.next().find(".robin-message--message").text());
@@ -525,39 +551,42 @@
                 if (remove_message) {
                     $message = null;
                     $(jq[0]).remove();
-                } else {
 
-                    if(urlRegex.test(messageText)) {
-                        urlRegex.lastIndex = 0;
-                        var url = encodeURI(urlRegex.exec(messageText)[0]);
-                        var parsedUrl = url.replace(/^/, "<a target=\"_blank\" href=\"").replace(/$/, "\">"+url+"</a>");
-                        var oldHTML = $(jq[0]).find('.robin-message--message').html();
-                        var newHTML = oldHTML.replace(url, parsedUrl);
-                        $(jq[0]).find('.robin-message--message').html(newHTML);
-                    }
-
-                    if (messageText.toLowerCase().indexOf(currentUsersName.toLowerCase()) !== -1) {
-                        $message.parent().css("background","#FFA27F");
-                        notifAudio.play();
-                        console.log("got new mention");
-
-                        return;
-                    }
-                    //still show mentions in highlight color.
-                    else if (messageText.toLowerCase().split(" ")[0][0] in colors_match) {
-                        $message.parent().css("background",colors_match[messageText.toLowerCase().split(" ")[0][0]]);
-
-                        return;
-                    }
-
-                    if(settings.filterChannel) {
-                        if(messageText.indexOf(settings.channel) == 0) {
-                            $message.text(messageText.substring(settings.channel.length).trim());
-                        }
-                    }
-
-                    findAndHideSpam();
+                    return;
                 }
+
+
+
+                if(urlRegex.test(messageText)) {
+                    urlRegex.lastIndex = 0;
+                    var url = encodeURI(urlRegex.exec(messageText)[0]);
+                    var parsedUrl = url.replace(/^/, "<a target=\"_blank\" href=\"").replace(/$/, "\">"+url+"</a>");
+                    var oldHTML = $(jq[0]).find('.robin-message--message').html();
+                    var newHTML = oldHTML.replace(url, parsedUrl);
+                    $(jq[0]).find('.robin-message--message').html(newHTML);
+                }
+
+                if (messageText.toLowerCase().indexOf(currentUsersName.toLowerCase()) !== -1) {
+                    $message.parent().css("background","#FFA27F");
+                    notifAudio.play();
+
+                    return;
+                }
+                //still show mentions in highlight color.
+                else if (messageText.toLowerCase().split(" ")[0][0] in colors_match) {
+                    $message.parent().css("background",colors_match[messageText.toLowerCase().split(" ")[0][0]]);
+
+                    return;
+                }
+
+                if(settings.filterChannel) {
+                    if(messageText.indexOf(settings.channel) == 0) {
+                        $message.text(messageText.substring(settings.channel.length).trim());
+                    }
+                }
+
+                findAndHideSpam();
+
             }
         });
     }
